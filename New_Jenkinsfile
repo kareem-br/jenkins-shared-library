@@ -1,0 +1,18 @@
+@Library('jenkins-shared-library') _
+
+pipeline([
+    SLACK_CHANNEL: '#ci-cd',
+    DOCKERHUB_REPO: 'blackrocktech/agoda-booking-worker-gte-prod-k8s',
+    IMAGE_TAG: 'v1.0.',
+    ENV_FILE_NAME: 'agoda-booking-worker-gte-prod-k8s.env',
+    PROJECT_KEY: 'agoda-booking-worker-gte-prod-k8s',
+    PROJECT_NAME: 'agoda-booking-worker-gte-prod-k8s',
+    SONAR_HOST_URL: 'http://sonarqube.live.blackrockapi.com/',
+    EXCLUSIONS: '**/ci-cd/**,**/tests/**',
+    TESTS: 'tests',
+    DEPLOYMENT_NAME: 'agoda-booking-worker-gte-prod-k8s',
+    NAMESPACE: 'production',
+    TIMEOUT: '60s',
+    DOCKER_AGENT: 'docker-agent',
+    DOCKER_CREDENTIALS_ID: 'DockerHub-Creds'
+])
