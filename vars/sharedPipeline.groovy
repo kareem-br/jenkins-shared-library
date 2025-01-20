@@ -156,14 +156,14 @@ def call(Map config = [:]) {
                     }
                 }
             }
-            
-            post {
-                always {
-                    script {
-                        def color = currentBuild.result == 'SUCCESS' ? '#00FF00' : '#FF0000'
-                        slackUpdateMessage(messageTs, "${currentBuild.result == 'SUCCESS' ? '✅ Pipeline Succeeded!' : '❌ Pipeline Failed!'}\nBuild URL: ${env.BUILD_URL}")
-                        slackAddReaction(messageTs, currentBuild.result == 'SUCCESS' ? '✅' : '❌', 'Pipeline Ended')
-                    }
+        }
+
+        post {
+            always {
+                script {
+                    def color = currentBuild.result == 'SUCCESS' ? '#00FF00' : '#FF0000'
+                    slackUpdateMessage(messageTs, "${currentBuild.result == 'SUCCESS' ? '✅ Pipeline Succeeded!' : '❌ Pipeline Failed!'}\nBuild URL: ${env.BUILD_URL}")
+                    slackAddReaction(messageTs, currentBuild.result == 'SUCCESS' ? '✅' : '❌', 'Pipeline Ended')
                 }
             }
         }
