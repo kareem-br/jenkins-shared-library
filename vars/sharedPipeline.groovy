@@ -179,6 +179,7 @@ def slackPostBuild(status) {
     slackSend(
         channel: SLACK_CHANNEL,
         color: color,
+        threadId: slackResponse.threadId,
         message: "${status == 'SUCCESS' ? '✅ SUCCESS' : '❌ FAILURE'} \n" +
                  "Build URL: ${BUILD_URL}"
     )
