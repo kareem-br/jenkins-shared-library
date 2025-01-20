@@ -36,14 +36,13 @@ def call(Map config = [:]) {
                             channel: SLACK_CHANNEL,
                             message: 
                                 "*Build* #${env.BUILD_NUMBER}: <${BUILD_URL}|${DEPLOYMENT_NAME}>\n" +
-                                "*Committer:* ${triggeredBy}\n" +
+                                "*Committer:* _${triggeredBy}_\n" +
                                 "*Last Commit:* `${commitHash}` *with message:* `${commitMsg}`\n" +
                                 "*Git URL:* ${GIT_URL}"
                         )
                     }
                 }
             }
-
 
             stage('INJECTING ENV FILES') {
                 steps {
