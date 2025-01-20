@@ -108,20 +108,28 @@ def call(Map config = [:]) {
             stage('SonarQube Analysis') {
                 steps {
                     script {
-                        slackSend(channel: slackResponse.threadId, color: '#808080', message: "Checking code with SonarQube: ${PROJECT_KEY}")
-                        def scannerHome = tool 'SonarScanner';
-                        withSonarQubeEnv() {
-                            sh "${scannerHome}/bin/sonar-scanner \
-                                -Dsonar.projectKey=${PROJECT_KEY} \
-                                -Dsonar.projectName=${PROJECT_NAME}\
-                                -Dsonar.sources=. \
-                                -Dsonar.host.url=${SONAR_HOST_URL} \
-                                -Dsonar.ce.javaOpts=-Xmx512m \
-                                -Dsonar.ws.timeout=600 \
-                                -Dsonar.tests=${TESTS} \
-                                -Dsonar.exclusions=${EXCLUSIONS} || true"
+                        try {
+                            slackSend(channel: slackResponse.threadId, color: '#808080', message: "Checking code with SonarQube: ${PROJECT_KEY}")
+                            def scannerHome = tool 'SonarScanner'
+                            withSonarQubeEnv() {
+                                sh """
+                                    ${scannerHome}/bin/sonar-scanner \
+                                        -Dsonar.projectKey=${PROJECT_KEY} \
+                                        -Dsonar.projectName=${PROJECT_NAME} \
+                                        -Dsonar.sources=. \
+                                        -Dsonar.host.url=${SONAR_HOST_URL} \
+                                        -Dsonar.ce.javaOpts=-Xmx512m \
+                                        -Dsonar.ws.timeout=600 \
+                                        -Dsonar.tests=${TESTS} \
+                                        -Dsonar.exclusions=${EXCLUSIONS}
+                                """
+                            }
+                            slackSend(channel: slackResponse.threadId, color: '#00FF00', message: "SonarQube Checked: ${PROJECT_KEY}")
+                        } catch (Exception e) {
+                            slackSend(channel: slackResponse.threadId, color: '#FF0000', message: "SonarQube analysis failed for ${PROJECT_KEY}. Error: ${e.getMessage()}")
+                            currentBuild.result = 'UNSTABLE'  // Mark the build as unstable but allow it to continue
+                            echo "Skipping SonarQube analysis due to failure."
                         }
-                        slackSend(channel: slackResponse.threadId, color: '#00FF00', message: "SonarQube Checked: ${PROJECT_KEY}")
                     }
                 }
             }
