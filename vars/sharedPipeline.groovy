@@ -40,6 +40,8 @@ def call(Map config = [:]) {
                                 "*Last Commit:* `${commitHash}` *with message:* `${commitMsg}`\n" +
                                 "*Git URL:* ${GIT_URL}"
                         )
+                        slackResponse.addReaction("hourglass_flowing_sand")
+
                     }
                 }
             }
@@ -182,7 +184,7 @@ def call(Map config = [:]) {
             always {
                 script {
                     slackPostBuild(currentBuild.currentResult, slackResponse.threadId)
-                    slackResponse.addReaction("white_check_mark")
+                    slackResponse.addReaction("alarm_clock")
                 }
             }
         }
