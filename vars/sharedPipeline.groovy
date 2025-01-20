@@ -1,11 +1,3 @@
-def addReaction(channel, timestamp, emoji) {
-    slackApiCall(
-        method: "reactions.add",
-        channel: channel,
-        name: emoji,
-        timestamp: timestamp
-    )
-}
 def call(Map config = [:]) {
     pipeline {
         agent {
@@ -30,7 +22,14 @@ def call(Map config = [:]) {
             DOCKER_AGENT = config.get('DOCKER_AGENT', 'docker-agent')
             DOCKER_CREDENTIALS_ID = config.get('DOCKER_CREDENTIALS_ID', 'default-docker-credentials')
         }
-
+        def addReaction(channel, timestamp, emoji) {
+            slackApiCall(
+                method: "reactions.add",
+                channel: channel,
+                name: emoji,
+                timestamp: timestamp
+            )
+        }
         stages {
             stage('Start Pipeline') {
                 steps {
