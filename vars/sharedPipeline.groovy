@@ -182,36 +182,18 @@ def call(Map config = [:]) {
             always {
                 script {
                     slackPostBuild(currentBuild.currentResult, slackResponse.threadId)
-                    slackPostBuild(currentBuild.currentResult, slackResponse)
+                    slackResponse.addReaction("thumbsup")
                 }
             }
         }
     }
 }
 
-def slackPostBuild(status, slackResponse) {
-    def color = '#808080'  // Default to gray for status message
-    def message = ""
-
-    if (status == 'SUCCESS') {
-        color = '#00FF00'  // Green for success
-        message = "✅ SUCCESS"
-        slackResponse.addReaction("thumbsup")  // Thumbs up for success
-    } else if (status == 'FAILURE') {
-        color = '#FF0000'  // Red for failure
-        message = "❌ FAILURE"
-        slackResponse.addReaction("thumbsdown")  // Thumbs down for failure
-    } else if (status == 'ABORTED') {
-        color = '#FFA500'  // Orange for aborted
-        message = "🚫 ABORTED"
-        slackResponse.addReaction("no_entry_sign")  // No entry sign for aborted
-    }
-
-    // Send the post-build status message
+def slackPostBuild(status, threadId) {
+    def color = status == 'SUCCESS' ? '#00FF00' : (status == 'FAILURE' ? '#FF0000' : '#808080')
     slackSend(
-        channel: slackResponse.channel,  // Post in the same channel
+        channel: threadId,  // Post in the same thread
         color: color,
-        message: message
+        message: "${status == 'SUCCESS' ? '✅ SUCCESS' : '❌ FAILURE'}"
     )
 }
-
