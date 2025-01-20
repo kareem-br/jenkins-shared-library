@@ -24,22 +24,10 @@ def call(Map config = [:]) {
         }
 
         stages {
-            stage('Start Pipeline') {
-                steps {
-                    script {
-                        def slackMessage = slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Pipeline started for ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}")
-                        def messageTs = slackMessage.messageId // Capture the message timestamp for updates
-
-                        // Add an initial reaction with stage info
-                        slackAddReaction(messageTs, '🔄', 'Pipeline Start')
-                    }
-                }
-            }
-
             stage('INJECTING ENV FILES') {
                 steps {
                     script {
-                        slackUpdateMessage(messageTs, "Injecting environment files...")
+                        slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Injecting: ${ENV_FILE_NAME}")
                         container(DOCKER_AGENT) {
                             withCredentials([usernamePassword(credentialsId: "devops-github-token", usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
                                 sh """
@@ -49,16 +37,15 @@ def call(Map config = [:]) {
                                 """
                             }
                         }
-                        slackUpdateMessage(messageTs, "✅ Environment files injected.")
-                        slackAddReaction(messageTs, '🔧', 'Injecting Environment Files')
+                        slackSend(channel: SLACK_CHANNEL, color: '#00FF00', message: "Injected: ${ENV_FILE_NAME}")
                     }
                 }
             }
-
+            
             stage('Run Unit Tests') {
                 steps {
                     script {
-                        slackUpdateMessage(messageTs, "Running unit tests...")
+                        slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Checking for unit tests in ${DEPLOYMENT_NAME}")
 
                         // Check if the 'tests/' directory exists
                         def testsExist = fileExists('tests')
@@ -91,17 +78,17 @@ def call(Map config = [:]) {
                                 error("Unit tests failed.") // Stop the pipeline
                             }
                         } else {
-                            slackUpdateMessage(messageTs, "✅ Unit tests completed.")
-                            slackAddReaction(messageTs, '🧪', 'Unit Tests Completed')
+                            slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "No unit tests found for ${DEPLOYMENT_NAME}. Skipping stage.")
                         }
                     }
                 }
             }
 
+
             stage('SonarQube Analysis') {
                 steps {
                     script {
-                        slackUpdateMessage(messageTs, "Running SonarQube analysis...")
+                        slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Checking code with SonarQube: ${PROJECT_KEY}")
                         def scannerHome = tool 'SonarScanner';
                         withSonarQubeEnv() {
                             sh "${scannerHome}/bin/sonar-scanner \
@@ -114,8 +101,7 @@ def call(Map config = [:]) {
                                 -Dsonar.tests=${TESTS} \
                                 -Dsonar.exclusions=${EXCLUSIONS} || true"
                         }
-                        slackUpdateMessage(messageTs, "✅ SonarQube analysis completed.")
-                        slackAddReaction(messageTs, '🔍', 'SonarQube Analysis Completed')
+                        slackSend(channel: SLACK_CHANNEL, color: '#0000FF', message: "SonarQube Checked: ${PROJECT_KEY}")
                     }
                 }
             }
@@ -123,7 +109,7 @@ def call(Map config = [:]) {
             stage('Building & Pushing Docker Image') {
                 steps {
                     script {
-                        slackUpdateMessage(messageTs, "Building Docker image...")
+                        slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Building: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
                         container(DOCKER_AGENT) {
                             withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD')]) {
                                 sh """
@@ -135,8 +121,7 @@ def call(Map config = [:]) {
                                 """
                             }
                         }
-                        slackUpdateMessage(messageTs, "✅ Docker image built and pushed.")
-                        slackAddReaction(messageTs, '🐳', 'Docker Build & Push Completed')
+                        slackSend(channel: SLACK_CHANNEL, color: '#00FF00', message: "Built and pushed: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
                     }
                 }
             }
@@ -144,15 +129,30 @@ def call(Map config = [:]) {
             stage('Deploying Image') {
                 steps {
                     script {
-                        slackUpdateMessage(messageTs, "Deploying Docker image...")
+                        slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Deploying: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
                         container(DOCKER_AGENT) {
                             sh """
                             kubectl set image deployment/${DEPLOYMENT_NAME} ${DEPLOYMENT_NAME}=\${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER} -n ${NAMESPACE}
                             kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=${TIMEOUT}
                             """
                         }
-                        slackUpdateMessage(messageTs, "✅ Docker image deployed.")
-                        slackAddReaction(messageTs, '🚀', 'Docker Image Deployed')
+                        slackSend(channel: SLACK_CHANNEL, color: '#00FF00', message: "Deployed: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
+                    }
+                }
+            }
+
+            stage('Rollback Deployment') {
+                when {
+                    expression {
+                        return currentBuild.result == 'FAILURE'
+                    }
+                }
+                steps {
+                    script {
+                        slackSend(channel: SLACK_CHANNEL, color: '#FF0000', message: "Rolling back deployment: ${DEPLOYMENT_NAME}")
+                        container(DOCKER_AGENT) {
+                            sh "kubectl rollout undo deployment/${DEPLOYMENT_NAME}"
+                        }
                     }
                 }
             }
@@ -161,21 +161,19 @@ def call(Map config = [:]) {
         post {
             always {
                 script {
-                    def color = currentBuild.result == 'SUCCESS' ? '#00FF00' : '#FF0000'
-                    slackUpdateMessage(messageTs, "${currentBuild.result == 'SUCCESS' ? '✅ Pipeline Succeeded!' : '❌ Pipeline Failed!'}\nBuild URL: ${env.BUILD_URL}")
-                    slackAddReaction(messageTs, currentBuild.result == 'SUCCESS' ? '✅' : '❌', 'Pipeline Ended')
+                    slackPostBuild(currentBuild.currentResult)
                 }
             }
         }
     }
 }
 
-def slackUpdateMessage(messageTs, text) {
-    slackSend(channel: SLACK_CHANNEL, ts: messageTs, text: text)
-}
-
-def slackAddReaction(messageTs, emoji, description) {
-    // Use Slack API to add a reaction with description for each stage
-    slackSend(channel: SLACK_CHANNEL, ts: messageTs, reaction: emoji)
-    slackSend(channel: SLACK_CHANNEL, ts: messageTs, text: ":information_source: *${description}*")
+def slackPostBuild(status) {
+    def color = status == 'SUCCESS' ? '#00FF00' : (status == 'FAILURE' ? '#FF0000' : '#808080')
+    slackSend(
+        channel: SLACK_CHANNEL,
+        color: color,
+        message: "${status == 'SUCCESS' ? '✅ SUCCESS' : '❌ FAILURE'} \n" +
+                 "Build URL: ${BUILD_URL}"
+    )
 }
