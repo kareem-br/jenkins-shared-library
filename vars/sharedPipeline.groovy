@@ -27,7 +27,7 @@ def call(Map config = [:]) {
             stage('Start Pipeline') {
                 steps {
                     script {
-                        def slackResponse = slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Pipeline started for ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}")
+                        slackResponse = slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Pipeline started for ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}")
                     }
                 }
             }
