@@ -183,34 +183,37 @@ def call(Map config = [:]) {
         post {
             always {
                 script {
-                    def emoji = ''
-                    switch (currentBuild.currentResult) {
-                        case 'SUCCESS':
-                            emoji = 'white_check_mark'  // Success emoji
-                            break
-                        case 'FAILURE':
-                            emoji = 'x'  // Failure emoji
-                            break
-                        case 'UNSTABLE':
-                            emoji = 'warning'  // Unstable emoji
-                            break
-                        default:
-                            emoji = 'question'  // Default emoji for unknown statuses
-                    }
+                    def emoji = getEmojiForBuildStatus(currentBuild.currentResult)
                     slackPostBuild(currentBuild.currentResult, slackResponse.threadId)
                     slackResponse.addReaction(emoji)
-
                 }
             }
         }
     }
 }
 
+def getEmojiForBuildStatus(status) {
+    switch (status) {
+        case 'SUCCESS':
+            return 'white_check_mark'
+        case 'FAILURE':
+            return 'x'
+        case 'UNSTABLE':
+            return 'warning'
+        default:
+            return 'question'
+    }
+}
+
 def slackPostBuild(status, threadId) {
-    def color = status == 'SUCCESS' ? '#00FF00' : (status == 'FAILURE' ? '#FF0000' : '#808080')
+    def color = getColorForBuildStatus(status)
     slackSend(
-        channel: threadId,  // Post in the same thread
+        channel: threadId,
         color: color,
         message: "${status == 'SUCCESS' ? '✅ SUCCESS' : '❌ FAILURE'}"
     )
+}
+
+def getColorForBuildStatus(status) {
+    return (status == 'SUCCESS') ? '#00FF00' : (status == 'FAILURE' ? '#FF0000' : '#808080')
 }
