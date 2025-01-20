@@ -183,8 +183,23 @@ def call(Map config = [:]) {
         post {
             always {
                 script {
+                    def emoji = ''
+                    switch (currentBuild.currentResult) {
+                        case 'SUCCESS':
+                            emoji = 'white_check_mark'  // Success emoji
+                            break
+                        case 'FAILURE':
+                            emoji = 'x'  // Failure emoji
+                            break
+                        case 'UNSTABLE':
+                            emoji = 'warning'  // Unstable emoji
+                            break
+                        default:
+                            emoji = 'question'  // Default emoji for unknown statuses
+                    }
                     slackPostBuild(currentBuild.currentResult, slackResponse.threadId)
-                    slackResponse.addReaction("alarm_clock")
+                    slackResponse.addReaction(emoji)
+
                 }
             }
         }
