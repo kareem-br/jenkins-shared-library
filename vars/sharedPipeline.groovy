@@ -182,7 +182,7 @@ def call(Map config = [:]) {
             always {
                 script {
                     slackPostBuild(currentBuild.currentResult, slackResponse.threadId)
-                    slackResponse.addReaction("thumbsup")
+                    slackResponse.addReaction(":white_check_mark:")
                 }
             }
         }
