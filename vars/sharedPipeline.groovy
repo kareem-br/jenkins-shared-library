@@ -27,8 +27,7 @@ def call(Map config = [:]) {
             stage('INJECTING ENV FILES') {
                 steps {
                     script {
-                        def slackResponse = slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Pipeline started for ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}")
-                        slackSend(channel: slackResponse.threadId, message: "🔄 Injecting environment files...")
+                        slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Injecting: ${ENV_FILE_NAME}")
                         container(DOCKER_AGENT) {
                             withCredentials([usernamePassword(credentialsId: "devops-github-token", usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
                                 sh """
@@ -38,7 +37,7 @@ def call(Map config = [:]) {
                                 """
                             }
                         }
-                        slackSend(channel: slackResponse.threadId, message: "✅ Environment files injected.")
+                        slackSend(channel: SLACK_CHANNEL, color: '#00FF00', message: "Injected: ${ENV_FILE_NAME}")
                     }
                 }
             }
@@ -46,13 +45,13 @@ def call(Map config = [:]) {
             stage('Run Unit Tests') {
                 steps {
                     script {
-                        slackSend(channel: slackResponse.threadId, message:  "Checking for unit tests in ${DEPLOYMENT_NAME}")
+                        slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Checking for unit tests in ${DEPLOYMENT_NAME}")
 
                         // Check if the 'tests/' directory exists
                         def testsExist = fileExists('tests')
 
                         if (testsExist) {
-                            slackSend(channel: slackResponse.threadId, message:  "Running unit tests on ${DEPLOYMENT_NAME}")
+                            slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Running unit tests on ${DEPLOYMENT_NAME}")
                             
                             try {
                                 container(DOCKER_AGENT) {
@@ -72,14 +71,14 @@ def call(Map config = [:]) {
                                     '''
                                 }
                                 junit 'reports/test-results.xml' // Publish test results
-                                slackSend(channel: slackResponse.threadId, message:  "All unit tests completed successfully on ${DEPLOYMENT_NAME}")
+                                slackSend(channel: SLACK_CHANNEL, color: '#00FF00', message: "All unit tests completed successfully on ${DEPLOYMENT_NAME}")
                             } catch (Exception e) {
-                                slackSend(channel: slackResponse.threadId, message:  "Unit tests failed for ${DEPLOYMENT_NAME}. Aborting.")
+                                slackSend(channel: SLACK_CHANNEL, color: '#FF0000', message: "Unit tests failed for ${DEPLOYMENT_NAME}. Aborting.")
                                 junit 'reports/test-results.xml' // Publish partial results if available
                                 error("Unit tests failed.") // Stop the pipeline
                             }
                         } else {
-                            slackSend(channel: slackResponse.threadId, message:  "No unit tests found for ${DEPLOYMENT_NAME}. Skipping stage.")
+                            slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "No unit tests found for ${DEPLOYMENT_NAME}. Skipping stage.")
                         }
                     }
                 }
@@ -89,7 +88,7 @@ def call(Map config = [:]) {
             stage('SonarQube Analysis') {
                 steps {
                     script {
-                        slackSend(channel: slackResponse.threadId, message:  "Checking code with SonarQube: ${PROJECT_KEY}")
+                        slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Checking code with SonarQube: ${PROJECT_KEY}")
                         def scannerHome = tool 'SonarScanner';
                         withSonarQubeEnv() {
                             sh "${scannerHome}/bin/sonar-scanner \
@@ -102,7 +101,7 @@ def call(Map config = [:]) {
                                 -Dsonar.tests=${TESTS} \
                                 -Dsonar.exclusions=${EXCLUSIONS} || true"
                         }
-                        slackSend(channel: slackResponse.threadId, message:  "SonarQube Checked: ${PROJECT_KEY}")
+                        slackSend(channel: SLACK_CHANNEL, color: '#0000FF', message: "SonarQube Checked: ${PROJECT_KEY}")
                     }
                 }
             }
@@ -110,7 +109,7 @@ def call(Map config = [:]) {
             stage('Building & Pushing Docker Image') {
                 steps {
                     script {
-                        slackSend(channel: slackResponse.threadId, message:  "Building: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
+                        slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Building: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
                         container(DOCKER_AGENT) {
                             withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD')]) {
                                 sh """
@@ -122,7 +121,7 @@ def call(Map config = [:]) {
                                 """
                             }
                         }
-                        slackSend(channel: slackResponse.threadId, message:  "Built and pushed: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
+                        slackSend(channel: SLACK_CHANNEL, color: '#00FF00', message: "Built and pushed: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
                     }
                 }
             }
@@ -130,14 +129,14 @@ def call(Map config = [:]) {
             stage('Deploying Image') {
                 steps {
                     script {
-                        slackSend(channel: slackResponse.threadId, message:  "Deploying: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
+                        slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Deploying: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
                         container(DOCKER_AGENT) {
                             sh """
                             kubectl set image deployment/${DEPLOYMENT_NAME} ${DEPLOYMENT_NAME}=\${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER} -n ${NAMESPACE}
                             kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=${TIMEOUT}
                             """
                         }
-                        slackSend(channel: slackResponse.threadId, message:  "Deployed: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
+                        slackSend(channel: SLACK_CHANNEL, color: '#00FF00', message: "Deployed: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
                     }
                 }
             }
@@ -150,7 +149,7 @@ def call(Map config = [:]) {
                 }
                 steps {
                     script {
-                        slackSend(channel: slackResponse.threadId, message: "Rolling back deployment: ${DEPLOYMENT_NAME}")
+                        slackSend(channel: SLACK_CHANNEL, color: '#FF0000', message: "Rolling back deployment: ${DEPLOYMENT_NAME}")
                         container(DOCKER_AGENT) {
                             sh "kubectl rollout undo deployment/${DEPLOYMENT_NAME}"
                         }
