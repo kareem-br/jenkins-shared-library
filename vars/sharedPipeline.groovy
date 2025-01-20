@@ -37,7 +37,7 @@ def call(Map config = [:]) {
                 steps {
                     script {
                         // Send message in the thread
-                        slackSend(channel: slackResponse.threadId, message: "Injecting: ${ENV_FILE_NAME}")
+                        slackSend(channel: slackResponse.threadId, color: '#808080', message: "Injecting: ${ENV_FILE_NAME}")
                         container(DOCKER_AGENT) {
                             withCredentials([usernamePassword(credentialsId: "devops-github-token", usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
                                 sh """
@@ -47,7 +47,7 @@ def call(Map config = [:]) {
                                 """
                             }
                         }
-                        slackSend(channel: slackResponse.threadId, message: "Injected: ${ENV_FILE_NAME}")
+                        slackSend(channel: slackResponse.threadId, color: '#00FF00', message: "Injected: ${ENV_FILE_NAME}")
                     }
                 }
             }
