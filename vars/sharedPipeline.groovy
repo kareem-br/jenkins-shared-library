@@ -27,7 +27,9 @@ def call(Map config = [:]) {
             stage('INJECTING ENV FILES') {
                 steps {
                     script {
-                        slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Injecting: ${ENV_FILE_NAME}")
+                        def initialMsg = slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Pipeline started for ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}")
+                        def threadTs = initialMsg.threadId // Capture the thread timestamp
+                        slackSend(channel: SLACK_CHANNEL, threadId: threadTs, message: "🔄 Injecting environment files...")
                         container(DOCKER_AGENT) {
                             withCredentials([usernamePassword(credentialsId: "devops-github-token", usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
                                 sh """
@@ -37,7 +39,7 @@ def call(Map config = [:]) {
                                 """
                             }
                         }
-                        slackSend(channel: SLACK_CHANNEL, color: '#00FF00', message: "Injected: ${ENV_FILE_NAME}")
+                        slackSend(channel: SLACK_CHANNEL, threadId: threadTs, message: "✅ Environment files injected.")
                     }
                 }
             }
