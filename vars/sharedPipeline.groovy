@@ -44,35 +44,46 @@ def call(Map config = [:]) {
             stage('Run Unit Tests') {
                 steps {
                     script {
-                        slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Running unit tests on ${DEPLOYMENT_NAME}")
-                        def exitCode = container(DOCKER_AGENT) {
-                            sh(script: '''
-                                # Create a temporary virtual environment
-                                python3 -m venv venv
-                                . venv/bin/activate
+                        slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Checking for unit tests in ${DEPLOYMENT_NAME}")
 
-                                # Install dependencies in the virtual environment
-                                pip install -r requirements.txt
+                        // Check if the 'tests/' directory exists
+                        def testsExist = fileExists('tests')
 
-                                # Run the tests
-                                pytest tests/ --junitxml=reports/test-results.xml
+                        if (testsExist) {
+                            slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Running unit tests on ${DEPLOYMENT_NAME}")
+                            
+                            def exitCode = container(DOCKER_AGENT) {
+                                sh(script: '''
+                                    # Set up virtual environment
+                                    python3 -m venv venv
+                                    . venv/bin/activate
 
-                                # Deactivate the virtual environment
-                                deactivate
-                            ''', returnStatus: true)
-                        }
+                                    # Install dependencies
+                                    pip install -r requirements.txt
 
-                        junit 'reports/test-results.xml' // Make the results available in Jenkins
+                                    # Run tests
+                                    pytest tests/ --junitxml=reports/test-results.xml || exit 1
 
-                        if (exitCode == 0) {
-                            slackSend(channel: SLACK_CHANNEL, color: '#00FF00', message: "All unit tests completed successfully on ${DEPLOYMENT_NAME}")
+                                    # Clean up virtual environment
+                                    deactivate
+                                ''', returnStatus: true)
+                            }
+
+                            junit 'reports/test-results.xml' // Publish test results
+
+                            if (exitCode == 0) {
+                                slackSend(channel: SLACK_CHANNEL, color: '#00FF00', message: "All unit tests completed successfully on ${DEPLOYMENT_NAME}")
+                            } else {
+                                slackSend(channel: SLACK_CHANNEL, color: '#FF0000', message: "Unit tests failed for ${DEPLOYMENT_NAME}. Aborting.")
+                                error("Unit tests failed.") // Stop the pipeline
+                            }
                         } else {
-                            slackSend(channel: SLACK_CHANNEL, color: '#FF0000', message: "Unit tests failed. Aborting the pipeline for ${DEPLOYMENT_NAME}")
-                            error("Unit tests failed.") // Stop the pipeline
+                            slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "No unit tests found for ${DEPLOYMENT_NAME}. Skipping stage.")
                         }
                     }
                 }
             }
+
             stage('SonarQube Analysis') {
                 steps {
                     script {
