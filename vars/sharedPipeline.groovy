@@ -40,7 +40,6 @@ def call(Map config = [:]) {
                                 "*Last Commit:* `${commitHash}` *with message:* `${commitMsg}`\n" +
                                 "*Git URL:* ${GIT_URL}"
                         )
-                        addReaction(SLACK_CHANNEL, slackResponse.ts, "rocket")
                     }
                 }
             }
@@ -60,7 +59,6 @@ def call(Map config = [:]) {
                             }
                         }
                         slackSend(channel: slackResponse.threadId, color: '#00FF00', message: "Injected: ${ENV_FILE_NAME}")
-                        addReaction(SLACK_CHANNEL, slackResponse.ts, "gear")
                     }
                 }
             }
@@ -124,7 +122,6 @@ def call(Map config = [:]) {
                                 -Dsonar.exclusions=${EXCLUSIONS} || true"
                         }
                         slackSend(channel: slackResponse.threadId, color: '#00FF00', message: "SonarQube Checked: ${PROJECT_KEY}")
-                        addReaction(SLACK_CHANNEL, slackResponse.ts, "mag")
                     }
                 }
             }
@@ -145,7 +142,6 @@ def call(Map config = [:]) {
                             }
                         }
                         slackSend(channel: slackResponse.threadId, color: '#00FF00', message: "Built and pushed: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
-                        addReaction(SLACK_CHANNEL, slackResponse.ts, "whale2")
                     }
                 }
             }
@@ -161,7 +157,6 @@ def call(Map config = [:]) {
                             """
                         }
                         slackSend(channel: slackResponse.threadId, color: '#00FF00', message: "Deployed: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
-                        addReaction(SLACK_CHANNEL, slackResponse.ts, "package")
                     }
                 }
             }
@@ -194,14 +189,10 @@ def call(Map config = [:]) {
 }
 
 def slackPostBuild(status, threadId) {
-    // Define the color and emoji based on the build status
     def color = status == 'SUCCESS' ? '#00FF00' : (status == 'FAILURE' ? '#FF0000' : '#808080')
-    def emoji = status == 'SUCCESS' ? '✅' : (status == 'FAILURE' ? '❌' : '⚙️')  // Success: ✅, Failure: ❌, In Progress: ⚙️
-
-    // Send Slack message with the status emoji and color
     slackSend(
         channel: threadId,  // Post in the same thread
         color: color,
-        message: "${emoji} ${status}"  // Display status with emoji
+        message: "${status == 'SUCCESS' ? '✅ SUCCESS' : '❌ FAILURE'}"
     )
 }
