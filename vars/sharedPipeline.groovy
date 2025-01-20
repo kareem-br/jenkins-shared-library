@@ -38,11 +38,12 @@ def call(Map config = [:]) {
                                 "*Build* #${env.BUILD_NUMBER}: <${BUILD_URL}|${DEPLOYMENT_NAME}>\n" +
                                 "*Committer:* ${triggeredBy}\n" +
                                 "*Last Commit:* `${commitHash}` *with message:* ${commitMsg}\n" +
-                                "*Git URL:* ${GIT_URL}\n" +
+                                "*Git URL:* ${GIT_URL}"
                         )
                     }
                 }
             }
+
 
             stage('INJECTING ENV FILES') {
                 steps {
