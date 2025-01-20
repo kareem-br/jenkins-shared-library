@@ -41,6 +41,7 @@ def call(Map config = [:]) {
                     }
                 }
             }
+            
             stage('Run Unit Tests') {
                 steps {
                     script {
@@ -52,29 +53,28 @@ def call(Map config = [:]) {
                         if (testsExist) {
                             slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Running unit tests on ${DEPLOYMENT_NAME}")
                             
-                            def exitCode = container(DOCKER_AGENT) {
-                                sh(script: '''
-                                    # Set up virtual environment
-                                    python3 -m venv venv
-                                    . venv/bin/activate
+                            try {
+                                container(DOCKER_AGENT) {
+                                    sh '''
+                                        # Set up virtual environment
+                                        python3 -m venv venv
+                                        . venv/bin/activate
 
-                                    # Install dependencies
-                                    pip install -r requirements.txt
+                                        # Install dependencies
+                                        pip install -r requirements.txt
 
-                                    # Run tests
-                                    pytest tests/ --junitxml=reports/test-results.xml || exit 1
-
-                                    # Clean up virtual environment
-                                    deactivate
-                                ''', returnStatus: true)
-                            }
-
-                            junit 'reports/test-results.xml' // Publish test results
-
-                            if (exitCode == 0) {
+                                        # Run tests
+                                        pytest tests/ --junitxml=reports/test-results.xml
+                                        
+                                        # Clean up virtual environment
+                                        deactivate
+                                    '''
+                                }
+                                junit 'reports/test-results.xml' // Publish test results
                                 slackSend(channel: SLACK_CHANNEL, color: '#00FF00', message: "All unit tests completed successfully on ${DEPLOYMENT_NAME}")
-                            } else {
+                            } catch (Exception e) {
                                 slackSend(channel: SLACK_CHANNEL, color: '#FF0000', message: "Unit tests failed for ${DEPLOYMENT_NAME}. Aborting.")
+                                junit 'reports/test-results.xml' // Publish partial results if available
                                 error("Unit tests failed.") // Stop the pipeline
                             }
                         } else {
@@ -83,6 +83,7 @@ def call(Map config = [:]) {
                     }
                 }
             }
+
 
             stage('SonarQube Analysis') {
                 steps {
