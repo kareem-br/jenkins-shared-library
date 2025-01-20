@@ -28,20 +28,7 @@ def call(Map config = [:]) {
                 steps {
                     script {
                         // Send initial Slack message and capture the response (threadId)
-                        slackResponse = slackSend(
-                            channel: SLACK_CHANNEL,
-                            message: """
-                            *Pipeline started* for *${env.JOB_NAME}* - Build #${env.BUILD_NUMBER} 
-
-                            \`\`\`
-                            Stage: Initializing
-                            Status: *Started*
-                            Build ID: \${env.BUILD_ID}
-                            \`\`\`
-                            """,
-                            color: '#36a64f'
-                        )
-
+                        slackResponse = slackSend(channel: SLACK_CHANNEL, message: "Pipeline started for ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}")
                     }
                 }
             }
