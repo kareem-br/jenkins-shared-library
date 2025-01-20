@@ -35,6 +35,7 @@ def call(Map config = [:]) {
                     }
                 }
             }
+
             stage('INJECTING ENV FILES') {
                 steps {
                     script {
@@ -53,7 +54,7 @@ def call(Map config = [:]) {
                     }
                 }
             }
-            
+
             stage('Run Unit Tests') {
                 steps {
                     script {
@@ -90,13 +91,12 @@ def call(Map config = [:]) {
                                 error("Unit tests failed.") // Stop the pipeline
                             }
                         } else {
-                        slackUpdateMessage(messageTs, "✅ Unit tests completed.")
-                        slackAddReaction(messageTs, '🧪', 'Unit Tests Completed')
+                            slackUpdateMessage(messageTs, "✅ Unit tests completed.")
+                            slackAddReaction(messageTs, '🧪', 'Unit Tests Completed')
                         }
                     }
                 }
             }
-
 
             stage('SonarQube Analysis') {
                 steps {
@@ -116,7 +116,6 @@ def call(Map config = [:]) {
                         }
                         slackUpdateMessage(messageTs, "✅ SonarQube analysis completed.")
                         slackAddReaction(messageTs, '🔍', 'SonarQube Analysis Completed')
-
                     }
                 }
             }
@@ -138,7 +137,6 @@ def call(Map config = [:]) {
                         }
                         slackUpdateMessage(messageTs, "✅ Docker image built and pushed.")
                         slackAddReaction(messageTs, '🐳', 'Docker Build & Push Completed')
-
                     }
                 }
             }
@@ -155,35 +153,15 @@ def call(Map config = [:]) {
                         }
                         slackUpdateMessage(messageTs, "✅ Docker image deployed.")
                         slackAddReaction(messageTs, '🚀', 'Docker Image Deployed')
-
                     }
                 }
             }
-
-            // stage('Rollback Deployment') {
-            //     when {
-            //         expression {
-            //             return currentBuild.result == 'FAILURE'
-            //         }
-            //     }
-            //     steps {
-            //         script {
-            //             slackSend(channel: SLACK_CHANNEL, color: '#FF0000', message: "Rolling back deployment: ${DEPLOYMENT_NAME}")
-            //             container(DOCKER_AGENT) {
-            //                 sh "kubectl rollout undo deployment/${DEPLOYMENT_NAME}"
-            //             }
-            //         }
-            //     }
-            // }
-        // }
-
+            
             post {
                 always {
                     script {
                         def color = currentBuild.result == 'SUCCESS' ? '#00FF00' : '#FF0000'
                         slackUpdateMessage(messageTs, "${currentBuild.result == 'SUCCESS' ? '✅ Pipeline Succeeded!' : '❌ Pipeline Failed!'}\nBuild URL: ${env.BUILD_URL}")
-
-                        // Final reaction: success or failure
                         slackAddReaction(messageTs, currentBuild.result == 'SUCCESS' ? '✅' : '❌', 'Pipeline Ended')
                     }
                 }
