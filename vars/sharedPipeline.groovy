@@ -34,18 +34,17 @@ def call(Map config = [:]) {
 
                         slackResponse = slackSend(
                             channel: SLACK_CHANNEL,
-                            message: """
-                                ${DEPLOYMENT_NAME} - Build #${env.BUILD_NUMBER}\n
-                                *Committer:* ${triggeredBy}\n
-                                *Message:* ${commitMsg}\n
-                                *Commit:* `${commitHash}`\n
-                                *Git URL:* ${GIT_URL}\n
-                                *Build URL:* <${BUILD_URL}|link>
-                            """
+                            message: 
+                                "*${DEPLOYMENT_NAME}* <${BUILD_URL}|${DEPLOYMENT_NAME}> - Build #${env.BUILD_NUMBER}\n" +
+                                "*Committer:* ${triggeredBy}\n" +
+                                "*Last Commit:* `${commitHash}` *with message:* ${commitMsg}\n" + +
+                                "*Git URL:* ${GIT_URL}\n" +
+                                "*Build URL:* <${BUILD_URL}|link>"
                         )
                     }
                 }
             }
+
 
             stage('INJECTING ENV FILES') {
                 steps {
