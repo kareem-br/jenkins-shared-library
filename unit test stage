@@ -1,0 +1,32 @@
+        stage('Run Unit Tests') {
+            steps {
+                script {
+                    slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Running unit tests on ${DEPLOYMENT_NAME}")
+                    def exitCode = container(DOCKER_AGENT) {
+                        sh(script: '''
+                            # Create a temporary virtual environment
+                            python3 -m venv venv
+                            . venv/bin/activate
+
+                            # Install dependencies in the virtual environment
+                            pip install -r requirements.txt
+
+                            # Run the tests
+                            pytest tests/ --junitxml=reports/test-results.xml
+
+                            # Deactivate the virtual environment
+                            deactivate
+                        ''', returnStatus: true)
+                    }
+
+                    junit 'reports/test-results.xml' // Make the results available in Jenkins
+
+                    if (exitCode == 0) {
+                        slackSend(channel: SLACK_CHANNEL, color: '#00FF00', message: "All unit tests completed successfully on ${DEPLOYMENT_NAME}")
+                    } else {
+                        slackSend(channel: SLACK_CHANNEL, color: '#FF0000', message: "Unit tests failed. Aborting the pipeline for ${DEPLOYMENT_NAME}")
+                        error("Unit tests failed.") // Stop the pipeline
+                    }
+                }
+            }
+        }
