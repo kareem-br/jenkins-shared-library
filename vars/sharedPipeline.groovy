@@ -68,8 +68,6 @@ def call(Map config = [:]) {
             stage('Run Unit Tests') {
                 steps {
                     script {
-                        slackSend(channel: slackResponse.threadId, color: '#808080', message: "Checking for unit tests in ${DEPLOYMENT_NAME}")
-
                         // Check if the 'tests/' directory exists
                         def testsExist = fileExists('tests')
 
@@ -156,6 +154,9 @@ def call(Map config = [:]) {
                             sh """
                             kubectl set image deployment/${DEPLOYMENT_NAME} ${DEPLOYMENT_NAME}=\${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER} -n ${NAMESPACE}
                             kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=${TIMEOUT}
+                            // # Clean up
+                            docker rmi \${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}
+                            docker rmi \${DOCKERHUB_REPO}:latest
                             """
                         }
                         slackSend(channel: slackResponse.threadId, color: '#00FF00', message: "Deployed: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
