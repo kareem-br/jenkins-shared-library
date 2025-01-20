@@ -1,3 +1,11 @@
+def addReaction(channel, timestamp, emoji) {
+    slackApiCall(
+        method: "reactions.add",
+        channel: channel,
+        name: emoji,
+        timestamp: timestamp
+    )
+}
 def call(Map config = [:]) {
     pipeline {
         agent {
@@ -207,11 +215,3 @@ def slackPostBuild(status, threadId) {
 }
 
 
-def addReaction(channel, timestamp, emoji) {
-    slackApiCall(
-        method: "reactions.add",
-        channel: channel,
-        name: emoji,
-        timestamp: timestamp
-    )
-}
