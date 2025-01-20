@@ -27,13 +27,16 @@ def call(Map config = [:]) {
             stage('Start Pipeline') {
                 steps {
                     script {
+                        // Send initial slack message and capture the thread ID
                         slackResponse = slackSend(channel: SLACK_CHANNEL, color: '#808080', message: "Pipeline started for ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}")
                     }
                 }
             }
+
             stage('INJECTING ENV FILES') {
                 steps {
                     script {
+                        // Send message in the thread
                         slackSend(channel: SLACK_CHANNEL, color: '#808080', threadId: slackResponse.threadId, message: "Injecting: ${ENV_FILE_NAME}")
                         container(DOCKER_AGENT) {
                             withCredentials([usernamePassword(credentialsId: "devops-github-token", usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
@@ -167,19 +170,19 @@ def call(Map config = [:]) {
         post {
             always {
                 script {
-                    slackPostBuild(currentBuild.currentResult)
+                    slackPostBuild(currentBuild.currentResult, slackResponse.threadId)
                 }
             }
         }
     }
 }
 
-def slackPostBuild(status) {
+def slackPostBuild(status, threadId) {
     def color = status == 'SUCCESS' ? '#00FF00' : (status == 'FAILURE' ? '#FF0000' : '#808080')
     slackSend(
         channel: SLACK_CHANNEL,
         color: color,
-        threadId: slackResponse.threadId,
+        threadId: threadId,
         message: "${status == 'SUCCESS' ? '✅ SUCCESS' : '❌ FAILURE'} \n" +
                  "Build URL: ${BUILD_URL}"
     )
