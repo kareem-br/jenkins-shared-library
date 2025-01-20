@@ -35,12 +35,12 @@ def call(Map config = [:]) {
                         slackResponse = slackSend(
                             channel: SLACK_CHANNEL,
                             message: """
-                                Pipeline started for ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}
+                                ${DEPLOYMENT_NAME} - Build #${env.BUILD_NUMBER}
                                 *Committer:* ${triggeredBy}
                                 *Message:* ${commitMsg}
                                 *Commit:* `${commitHash}`
                                 *Git URL:* ${GIT_URL}
-                                *Build URL:* ${BUILD_URL}
+                                *Build URL:* <${BUILD_URL}|link>
                             """
                         )
                     }
