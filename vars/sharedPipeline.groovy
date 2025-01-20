@@ -28,7 +28,21 @@ def call(Map config = [:]) {
                 steps {
                     script {
                         // Send initial Slack message and capture the response (threadId)
-                        slackResponse = slackSend(channel: SLACK_CHANNEL, message: "Pipeline started for ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}")
+                        def triggeredBy = sh(script: "git log --format='%an <%ae>' -1", returnStdout: true).trim()
+                        def commitMsg = sh(script: 'git log -1 --pretty=%B', returnStdout: true).trim()
+                        def commitHash = GIT_COMMIT.take(7) // Short commit hash for display
+
+                        slackResponse = slackSend(
+                            channel: SLACK_CHANNEL,
+                            message: """
+                                Pipeline started for ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}
+                                *Committer:* ${triggeredBy}
+                                *Message:* ${commitMsg}
+                                *Commit:* `${commitHash}`
+                                *Git URL:* ${GIT_URL}
+                                *Build URL:* ${BUILD_URL}
+                            """
+                        )
                     }
                 }
             }
