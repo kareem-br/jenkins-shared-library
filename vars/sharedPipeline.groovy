@@ -56,7 +56,7 @@ def call(Map config = [:]) {
                                 sh """
                                 curl -u "${GIT_USERNAME}:${GIT_PASSWORD}" -LJO https://raw.githubusercontent.com/lunarone-blackrock/configs/main/${ENV_FILE_NAME}
                                 mv ${ENV_FILE_NAME} .env
-                                cat .env
+                                // cat .env
                                 """
                             }
                         }
