@@ -86,7 +86,6 @@ def call(Map config = [:]) {
                                         # Run tests
                                         pytest tests/ --junitxml=reports/test-results.xml
                                         
-                                        # Clean up virtual environment
                                         deactivate
 
                                         echo "Cleaning up test environment..."
