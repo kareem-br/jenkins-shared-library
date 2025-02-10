@@ -88,6 +88,9 @@ def call(Map config = [:]) {
                                         
                                         # Clean up virtual environment
                                         deactivate
+
+                                        echo "Cleaning up test environment..."
+                                        rm -rf venv
                                     '''
                                 }
                                 junit 'reports/test-results.xml' // Publish test results
