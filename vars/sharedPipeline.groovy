@@ -118,9 +118,7 @@ def call(Map config = [:]) {
                                 -Dsonar.sources=. \
                                 -Dsonar.host.url=${SONAR_HOST_URL} \
                                 -Dsonar.ce.javaOpts=-Xmx512m \
-                                -Dsonar.ws.timeout=600 \
-                                -Dsonar.tests=${TESTS} \
-                                -Dsonar.exclusions=${EXCLUSIONS} || true"
+                                -Dsonar.ws.timeout=600 || true"
                         }
                         slackSend(channel: slackResponse.threadId, color: '#00FF00', message: "SonarQube Checked: ${PROJECT_KEY}")
                     }
