@@ -54,7 +54,14 @@ def call(Map config = [:]) {
                         container(DOCKER_AGENT) {
                             withCredentials([usernamePassword(credentialsId: "devops-github-token", usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
                                 sh """
-                                curl -u "${GIT_USERNAME}:${GIT_PASSWORD}" -LJO https://raw.githubusercontent.com/lunarone-blackrock/configs/main/${ENV_FILE_NAME}
+                                set -o pipefail
+                                HTTP_STATUS=\$(curl -u "${GIT_USERNAME}:${GIT_PASSWORD}" -s -o ${ENV_FILE_NAME} -w "%{http_code}" https://raw.githubusercontent.com/lunarone-blackrock/configs/main/${ENV_FILE_NAME}")
+                                
+                                if [ "\$HTTP_STATUS" -ne 200 ]; then
+                                    echo "Error: File ${ENV_FILE_NAME} not found (HTTP \$HTTP_STATUS)"
+                                    exit 1
+                                fi
+                                
                                 mv ${ENV_FILE_NAME} .env
                                 """
                             }
@@ -63,6 +70,7 @@ def call(Map config = [:]) {
                     }
                 }
             }
+
             
             stage('Run Unit Tests') {
                 steps {
