@@ -150,34 +150,36 @@ def call(Map config = [:]) {
                 steps {
                     script {
                         slackSend(channel: slackResponse.threadId, color: '#808080', message: "Deploying: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
+                        
                         container(DOCKER_AGENT) {
+                            def deploySuccess = true
+                            
+                            try {
+                                sh """
+                                kubectl set image deployment/${DEPLOYMENT_NAME} ${DEPLOYMENT_NAME}=\${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER} -n ${NAMESPACE}
+                                kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=${TIMEOUT}
+                                """
+                            } catch (Exception e) {
+                                deploySuccess = false
+                            }
+
+                            if (!deploySuccess) {
+                                slackSend(channel: slackResponse.threadId, color: '#FF0000', message: "Deployment failed! Rolling back ${DEPLOYMENT_NAME} in ${NAMESPACE}")
+                                sh "kubectl rollout undo deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE}"
+                            } else {
+                                slackSend(channel: slackResponse.threadId, color: '#00FF00', message: "Deployed: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
+                            }
+
+                            // Cleanup images
                             sh """
-                            kubectl set image deployment/${DEPLOYMENT_NAME} ${DEPLOYMENT_NAME}=\${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER} -n ${NAMESPACE}
-                            kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=${TIMEOUT}
-                            docker rmi \${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}
+                            docker rmi \${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER} || true
                             docker rmi \${DOCKERHUB_REPO}:latest || true
                             """
                         }
-                        slackSend(channel: slackResponse.threadId, color: '#00FF00', message: "Deployed: ${DOCKERHUB_REPO}:${IMAGE_TAG}${BUILD_NUMBER}")
                     }
                 }
             }
 
-            stage('Rollback Deployment') {
-                when {
-                    expression {
-                        return currentBuild.result == 'FAILURE'
-                    }
-                }
-                steps {
-                    script {
-                        slackSend(channel: slackResponse.threadId, color: '#808080', message: "Rolling back deployment: ${DEPLOYMENT_NAME}")
-                        container(DOCKER_AGENT) {
-                            sh "kubectl rollout undo deployment/${DEPLOYMENT_NAME}"
-                        }
-                    }
-                }
-            }
         }
 
         post {
