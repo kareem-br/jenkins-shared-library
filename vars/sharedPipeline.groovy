@@ -61,24 +61,6 @@ def call(Map config = [:]) {
                     }
                 }
             }
-            // stage('INJECTING ENV FILES') {
-            //     steps {
-            //         script {
-            //             // Send message in the thread
-            //             slackSend(channel: slackResponse.threadId, color: '#808080', message: "Injecting: ${ENV_FILE_NAME}")
-            //             container(DOCKER_AGENT) {
-            //                 withCredentials([usernamePassword(credentialsId: "devops-github-token", usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
-            //                     sh """
-            //                     curl -u "${GIT_USERNAME}:${GIT_PASSWORD}" -LJO https://raw.githubusercontent.com/lunarone-blackrock/configs/main/${ENV_FILE_NAME}
-            //                     mv ${ENV_FILE_NAME} .env
-            //                     cat .env
-            //                     """
-            //                 }
-            //             }
-            //             slackSend(channel: slackResponse.threadId, color: '#00FF00', message: "Injected: ${ENV_FILE_NAME}")
-            //         }
-            //     }
-            // }
             
             stage('Run Unit Tests') {
                 steps {
