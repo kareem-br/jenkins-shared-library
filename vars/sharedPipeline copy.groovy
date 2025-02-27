@@ -61,67 +61,64 @@ def call(Map config = [:]) {
                     }
                 }
             }
-            stage('Test & Analyze') {
-                parallel {
-                    stage('Run Unit Tests') {
-                        steps {
-                            script {
-                                // Check if the 'tests/' directory exists
-                                def testsExist = fileExists('tests')
+            
+            stage('Run Unit Tests') {
+                steps {
+                    script {
+                        // Check if the 'tests/' directory exists
+                        def testsExist = fileExists('tests')
 
-                                if (testsExist) {
-                                    slackSend(channel: slackResponse.threadId, color: '#808080', message: "Running unit tests on ${DEPLOYMENT_NAME}")
-                                    
-                                    try {
-                                        container(DOCKER_AGENT) {
-                                            sh '''
-                                                # Set up virtual environment
-                                                python3 -m venv venv
-                                                . venv/bin/activate
+                        if (testsExist) {
+                            slackSend(channel: slackResponse.threadId, color: '#808080', message: "Running unit tests on ${DEPLOYMENT_NAME}")
+                            
+                            try {
+                                container(DOCKER_AGENT) {
+                                    sh '''
+                                        # Set up virtual environment
+                                        python3 -m venv venv
+                                        . venv/bin/activate
 
-                                                # Install dependencies
-                                                pip install -r requirements.txt
+                                        # Install dependencies
+                                        pip install -r requirements.txt
 
-                                                # Run tests
-                                                pytest tests/ --junitxml=reports/test-results.xml
-                                                
-                                                deactivate
+                                        # Run tests
+                                        pytest tests/ --junitxml=reports/test-results.xml
+                                        
+                                        deactivate
 
-                                                echo "Cleaning up test environment..."
-                                                rm -rf venv
-                                            '''
-                                        }
-                                        junit 'reports/test-results.xml' // Publish test results
-                                        slackSend(channel: slackResponse.threadId, color: '#00FF00', message: "All unit tests completed successfully on ${DEPLOYMENT_NAME}")
-                                    } catch (Exception e) {
-                                        slackSend(channel: slackResponse.threadId, message: "Unit tests failed for ${DEPLOYMENT_NAME}. Aborting.")
-                                        junit 'reports/test-results.xml' // Publish partial results if available
-                                        error("Unit tests failed.") // Stop the pipeline
-                                    }
-                                } else {
-                                    slackSend(channel: slackResponse.threadId, color: '#808080', message: "No unit tests found for ${DEPLOYMENT_NAME}. Skipping stage.")
+                                        echo "Cleaning up test environment..."
+                                        rm -rf venv
+                                    '''
                                 }
+                                junit 'reports/test-results.xml' // Publish test results
+                                slackSend(channel: slackResponse.threadId, color: '#00FF00', message: "All unit tests completed successfully on ${DEPLOYMENT_NAME}")
+                            } catch (Exception e) {
+                                slackSend(channel: slackResponse.threadId, message: "Unit tests failed for ${DEPLOYMENT_NAME}. Aborting.")
+                                junit 'reports/test-results.xml' // Publish partial results if available
+                                error("Unit tests failed.") // Stop the pipeline
                             }
+                        } else {
+                            slackSend(channel: slackResponse.threadId, color: '#808080', message: "No unit tests found for ${DEPLOYMENT_NAME}. Skipping stage.")
                         }
                     }
+                }
+            }
 
-                    stage('SonarQube Analysis') {
-                        steps {
-                            script {
-                                slackSend(channel: slackResponse.threadId, color: '#808080', message: "Checking code with SonarQube: ${PROJECT_KEY}")
-                                def scannerHome = tool 'SonarScanner'
-                                withSonarQubeEnv() {
-                                    sh "${scannerHome}/bin/sonar-scanner \
-                                        -Dsonar.projectKey=${PROJECT_KEY} \
-                                        -Dsonar.projectName=${PROJECT_NAME} \
-                                        -Dsonar.sources=. \
-                                        -Dsonar.host.url=${SONAR_HOST_URL} \
-                                        -Dsonar.ce.javaOpts=-Xmx512m \
-                                        -Dsonar.ws.timeout=600 || true"
-                                }
-                                slackSend(channel: slackResponse.threadId, color: '#00FF00', message: "SonarQube Checked: ${PROJECT_KEY}")
-                            }
+            stage('SonarQube Analysis') {
+                steps {
+                    script {
+                        slackSend(channel: slackResponse.threadId, color: '#808080', message: "Checking code with SonarQube: ${PROJECT_KEY}")
+                        def scannerHome = tool 'SonarScanner';
+                        withSonarQubeEnv() {
+                            sh "${scannerHome}/bin/sonar-scanner \
+                                -Dsonar.projectKey=${PROJECT_KEY} \
+                                -Dsonar.projectName=${PROJECT_NAME}\
+                                -Dsonar.sources=. \
+                                -Dsonar.host.url=${SONAR_HOST_URL} \
+                                -Dsonar.ce.javaOpts=-Xmx512m \
+                                -Dsonar.ws.timeout=600 || true"
                         }
+                        slackSend(channel: slackResponse.threadId, color: '#00FF00', message: "SonarQube Checked: ${PROJECT_KEY}")
                     }
                 }
             }

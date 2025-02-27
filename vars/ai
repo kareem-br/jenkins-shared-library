@@ -1,0 +1,158 @@
+def call(Map config = [:]) {
+    pipeline {
+        agent {
+            kubernetes {
+                inheritFrom config.get('DOCKER_AGENT', 'docker-agent')
+                yamlFile 'k8s/pod-template.yaml'  // Externalized pod configuration
+            }
+        }
+
+        environment {
+            SLACK_CHANNEL = config.get('SLACK_CHANNEL', '#ci-cd')
+            DOCKERHUB_REPO = config.get('DOCKERHUB_REPO', 'default/repo')
+            IMAGE_TAG = config.get('IMAGE_TAG', "${env.GIT_COMMIT.take(7)}-${currentBuild.timestamp.format('yyyyMMdd-HHmmss')}")
+            ENV_FILE_URL = config.get('ENV_FILE_URL', 'https://raw.githubusercontent.com/lunarone-blackrock/configs/main/')
+            PROJECT_KEY = config.get('PROJECT_KEY', 'default-project-key')
+            SONAR_HOST_URL = config.get('SONAR_HOST_URL', 'http://sonarqube.example.com/')
+            DEPLOYMENT_NAME = config.get('DEPLOYMENT_NAME', 'default-deployment')
+            NAMESPACE = config.get('NAMESPACE', 'default')
+            DOCKER_CREDENTIALS_ID = config.get('DOCKER_CREDENTIALS_ID', 'default-docker-credentials')
+            KUBECONFIG = credentials('kubeconfig')  // Secured kubeconfig
+        }
+
+        stages {
+            stage('Start Pipeline') {
+                steps {
+                    script {
+                        def commit = checkout scm  // Use built-in checkout for better git info
+                        slackResponse = slackSend(
+                            channel: SLACK_CHANNEL,
+                            message: """*Build* #${env.BUILD_NUMBER}: <${BUILD_URL}|${DEPLOYMENT_NAME}>
+                            |*Committer:* ${commit.GIT_AUTHOR_NAME} <${commit.GIT_AUTHOR_EMAIL}>
+                            |*Commit:* ${commit.GIT_COMMIT.take(7)} - ${commit.GIT_MESSAGE.take(50)}
+                            |*Branch:* ${BRANCH_NAME}""".stripMargin()
+                        )
+                    }
+                }
+            }
+
+            stage('Environment Setup') {
+                parallel {
+                    stage('Inject Config') {
+                        steps {
+                            script {
+                                container('docker-agent') {
+                                    withCredentials([file(credentialsId: 'env-secrets', variable: 'SECRET_ENV')]) {
+                                        sh """
+                                        # Merge secret and non-secret env files
+                                        curl -fsSL ${ENV_FILE_URL}${config.ENV_FILE_NAME} -o .env
+                                        cat \$SECRET_ENV >> .env
+                                        """
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    stage('Dependency Cache') {
+                        steps {
+                            script {
+                                container('docker-agent') {
+                                    sh """
+                                    # Use cached pip dependencies if available
+                                    if [ -d /cache/pip ]; then
+                                        cp -r /cache/pip ./venv
+                                    fi
+                                    pip install -r requirements.txt --cache-dir /cache/pip
+                                    """
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            stage('Test & Analyze') {
+                parallel {
+                    stage('Unit Tests') {
+                        steps {
+                            script {
+                                container('docker-agent') {
+                                    sh 'pytest --cov=app --junitxml=reports/junit.xml tests/'
+                                    coverage publish (// Send to coverage dashboard
+                                }
+                            }
+                        }
+                    }
+                    stage('Code Quality') {
+                        steps {
+                            script {
+                                withSonarQubeEnv('sonar') {
+                                    sh """
+                                    sonar-scanner \
+                                        -Dsonar.projectKey=${PROJECT_KEY} \
+                                        -Dsonar.sources=src \
+                                        -Dsonar.exclusions='**/test/**' \
+                                        -Dsonar.coverageReportPaths=reports/coverage.xml
+                                    """
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            stage('Build & Push') {
+                steps {
+                    script {
+                        container('kaniko') {
+                            sh """
+                            /kaniko/executor \
+                                --context \$PWD \
+                                --dockerfile \$PWD/Dockerfile \
+                                --destination ${DOCKERHUB_REPO}:${IMAGE_TAG} \
+                                --cache=true \
+                                --cache-repo=${DOCKERHUB_REPO}/cache
+                            """
+                        }
+                    }
+                }
+            }
+
+            stage('Deploy') {
+                steps {
+                    script {
+                        container('kubectl') {
+                            sh """
+                            helm upgrade ${DEPLOYMENT_NAME} ./charts \
+                                --namespace ${NAMESPACE} \
+                                --set image.tag=${IMAGE_TAG} \
+                                --atomic \
+                                --timeout 5m \
+                                --install
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        post {
+            success {
+                script {
+                    slackSend color: 'good', message: "Deployed ${IMAGE_TAG} to ${NAMESPACE}"
+                    archiveArtifacts 'reports/**/*'
+                }
+            }
+            failure {
+                script {
+                    slackSend color: 'danger', message: "Failed in stage: ${currentBuild.result}"
+                    sh "helm rollback ${DEPLOYMENT_NAME} -n ${NAMESPACE}"
+                }
+            }
+            cleanup {
+                sh 'rm -rf venv tmp'
+                deleteDir()
+            }
+        }
+    }
+}
